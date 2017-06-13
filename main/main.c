@@ -80,7 +80,6 @@
 
 #ifdef HAVE_JANSSON
 #include "interactive.h"
-#include "secure.h"
 #include <jansson.h>
 #include <errno.h>
 #endif
@@ -498,9 +497,11 @@ static void batchMakeTags (cookedArgs *args, void *user CTAGS_ATTR_UNUSED)
 void interactiveLoop (cookedArgs *args CTAGS_ATTR_UNUSED, void *user CTAGS_ATTR_UNUSED)
 {
 #ifdef HAVE_SECCOMP
-	if (Option.secure) {
+	struct interactiveModeArgs *iargs = user;
+
+	if (iargs->secure) {
 		/* As of jansson 2.6, the object hashing is seeded off
-		   of /dev/urandomm, so trigger the hash seeding
+		   of /dev/urandom, so trigger the hash seeding
 		   before installing the syscall filter.
 		*/
 		json_t * tmp = json_object ();
@@ -553,6 +554,14 @@ void interactiveLoop (cookedArgs *args CTAGS_ATTR_UNUSED, void *user CTAGS_ATTR_
 			openTagFile ();
 			if (size == -1)
 			{					/* read from disk */
+#ifdef HAVE_SECCOMP
+				struct interactiveModeArgs *iargs = user;
+				if (iargs->secure) {
+					error (FATAL,
+						   "invalid request in secure submode: reading file contents from a file is limited");
+					goto next;
+				}
+#endif
 				createTagsForEntry (filename);
 			}
 			else
